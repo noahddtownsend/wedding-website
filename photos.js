@@ -1,369 +1,419 @@
 $(document).ready(function() {
-    const ALBUM_URL = "https://photos.google.com/share/AF1QipN95RmzYbRwuSi38USGjk7rg95Rt5JH6N1EyzR1T5mZJ_ZhbypcAbyrbxWITmOjww?key=MW5UNDZZMzd1VmUwQWhpUWlVdXBLS3NsSHVKYm1n";
     const AUDIO_SRC = "audio/The Pink Dream - Bring Into Being - 03 Ely Lights.wav";
 
-    let mediaItems = []; // Array of URLs (images/videos)
+    let mediaItems = [];
     let currentItemIndex = -1;
     
-    // Slideshow state
-    let isSlideshowPlaying = false;
-    let isShuffleActive = false;
+    // Slideshow variables
     let slideshowInterval = null;
-    let shuffledIndices = [];
-    let currentShufflePos = -1;
+    const SLIDESHOW_DELAY = 4000; // 4 seconds auto-advance
 
-    // Audio player state
+    // Audio state
     let audio = null;
     let isPlaying = false;
     let wasMusicPlayingBeforeVideo = false;
-
-    // Initialize Page
-    initGallery();
-    initAudioPlayer();
-    initLightbox();
 
     // Determine if file is a video
     function isVideo(url) {
         return url.toLowerCase().includes('.mp4') || 
                url.toLowerCase().includes('.webm') || 
-               url.toLowerCase().includes('.mov') ||
-               url.toLowerCase().includes('/sample/forbigger') || // Support sample URLs
-               url.toLowerCase().includes('gtv-videos-bucket');
+               url.toLowerCase().includes('.mov');
     }
 
-    // Fetch Album HTML utilizing a CORS proxy
-    async function fetchAlbumHtml(albumUrl) {
+    // Load photo chooser and slideshow
+    function initGallery() {
         try {
-            const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(albumUrl)}`);
-            if (!res.ok) throw new Error('AllOrigins failed');
-            const data = await res.json();
-            return data.contents;
-        } catch (err) {
-            console.warn('AllOrigins failed, trying CorsProxy.io...', err);
-            try {
-                const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(albumUrl)}`);
-                if (!res.ok) throw new Error('CorsProxy.io failed');
-                return await res.text();
-            } catch (err2) {
-                console.error('All CORS proxies failed', err2);
-                throw err2;
-            }
-        }
-    }
-
-    // Load photos and videos
-    async function initGallery() {
-        const grid = $('#photosGrid');
-        const loading = $('#galleryLoading');
-
-        // Step 1: Check if STATIC_GALLERY has items (local index database)
-        if (typeof STATIC_GALLERY !== 'undefined' && STATIC_GALLERY.length > 0) {
-            mediaItems = STATIC_GALLERY;
-            renderGrid(mediaItems);
-            loading.fadeOut(300, () => grid.addClass('loaded'));
-            return;
-        }
-
-        // Step 2: Fallback to Google Photos dynamic scraping if no local list is present
-        try {
-            const html = await fetchAlbumHtml(ALBUM_URL);
-            const regex = /https:\/\/lh[0-9]+\.googleusercontent\.com\/pw\/[A-Za-z0-9\-_]{50,}/g;
-            const matches = html.match(regex) || [];
-            const uniqueUrls = [...new Set(matches)];
-            
-            if (uniqueUrls.length === 0) {
-                throw new Error('No photos found in the Google Photos album.');
-            }
-
-            mediaItems = uniqueUrls;
-            renderGrid(mediaItems);
-            loading.fadeOut(300, () => grid.addClass('loaded'));
-        } catch (err) {
-            console.error('Failed to load dynamic gallery:', err);
-            loading.html(`
-                <p style="color: var(--pink); font-size: 1.1em; margin-bottom: 20px;">Could not load gallery directly.</p>
-                <a href="${ALBUM_URL}" target="_blank" class="registryButton" style="width: auto !important; height: auto !important; padding: 12px 24px; color: var(--dark-blue); font-family: var(--serif-font); font-weight: bold; text-decoration: none; display: inline-block;">
-                    View Shared Album
-                </a>
-            `);
-        }
-    }
-
-    // Render Grid items
-    function renderGrid(items) {
-        const grid = $('#photosGrid').empty();
-        items.forEach((url, index) => {
-            let thumbUrl = url;
-            let videoClass = '';
-
-            if (isVideo(url)) {
-                videoClass = 'video-item';
-                // For demonstration, use a default placeholder image for video grid thumbnails
-                thumbUrl = 'images/assets/images/engagement_ring.webp'; 
-            } else if (url.includes('googleusercontent.com')) {
-                // Resize googleusercontent images to w500 square thumbnail for the grid
-                thumbUrl = `${url}=w500-h500-c`;
-            }
-
-            const item = $(`
-                <div class="gallery-item ${videoClass}" data-index="${index}">
-                    <img src="${thumbUrl}" alt="Wedding Media" loading="lazy">
-                </div>
-            `);
-            grid.append(item);
-        });
-    }
-
-    // Fullscreen lightbox viewer
-    function initLightbox() {
-        const lightbox = $('#lightbox');
-        const lightboxImg = $('#lightboxImg');
-        const lightboxVideo = $('#lightboxVideo');
-        const closeBtn = $('.lightboxClose');
-        const prevBtn = $('.lightboxPrev');
-        const nextBtn = $('.lightboxNext');
-        const playPauseBtn = $('#slideshowPlayPause');
-        const shuffleBtn = $('#slideshowShuffle');
-        const indexIndicator = $('#lightboxIndex');
-
-        // Handle item click
-        $(document).on('click', '.gallery-item', function() {
-            const index = parseInt($(this).data('index'));
-            openLightbox(index);
-        });
-
-        function openLightbox(index) {
-            if (index < 0 || index >= mediaItems.length) return;
-            currentItemIndex = index;
-            
-            const url = mediaItems[currentItemIndex];
-            
-            // Render index (1-indexed)
-            indexIndicator.text(`${currentItemIndex + 1} / ${mediaItems.length}`);
-
-            // Hide previous elements
-            lightboxImg.hide();
-            lightboxVideo.hide();
-            
-            // Reset video source
-            lightboxVideo.attr('src', '');
-
-            if (isVideo(url)) {
-                // Element is video
-                lightboxVideo.attr('src', url);
-                lightboxVideo.show();
-                lightboxImg.hide();
+            if (typeof STATIC_GALLERY !== 'undefined' && STATIC_GALLERY.length > 0) {
+                mediaItems = shuffleArray([...STATIC_GALLERY]);
                 
-                // Automatically pause background music when video starts playing
-                lightboxVideo[0].onplay = function() {
-                    if (isPlaying) {
-                        wasMusicPlayingBeforeVideo = true;
-                        pauseBackgroundMusic();
-                    }
-                };
-
-                // Automatically resume background music when video is paused/ended
-                lightboxVideo[0].onpause = function() {
-                    if (wasMusicPlayingBeforeVideo) {
-                        playBackgroundMusic();
-                        wasMusicPlayingBeforeVideo = false;
-                    }
-                };
+                renderChooserStrip(mediaItems);
                 
-                lightboxVideo[0].onended = function() {
-                    if (wasMusicPlayingBeforeVideo) {
-                        playBackgroundMusic();
-                        wasMusicPlayingBeforeVideo = false;
+                // Set initial slide to the first image (directly, no animation)
+                if (mediaItems.length > 0) {
+                    var firstImageIndex = 0;
+                    for (var fi = 0; fi < mediaItems.length; fi++) {
+                        if (mediaItems[fi].type === 'image') {
+                            firstImageIndex = fi;
+                            break;
+                        }
                     }
-                    // Auto-advance slideshow if enabled
-                    if (isSlideshowPlaying) showNext();
-                };
-
-                // Attempt video autoplay
-                lightboxVideo[0].play().catch(e => console.log('Video autoplay blocked:', e));
-
-            } else {
-                // Element is image
-                let highResUrl = url;
-                if (url.includes('googleusercontent.com')) {
-                    highResUrl = `${url}=w1600`;
+                    loadInitialSlide(firstImageIndex);
                 }
-                lightboxImg.attr('src', highResUrl);
-                lightboxImg.show();
+                
+                // Load the first 15 thumbnails (after initial slide so active thumb is already set)
+                loadFirstThumbnails();
+                
+                setupSlideshowControls();
             }
+        } catch (e) {
+            alert("Error in initGallery: " + e.message + "\n" + e.stack);
+        }
+    }
 
-            lightbox.addClass('show');
-            $('body').css('overflow', 'hidden'); // Disable page scroll
+    function loadFirstThumbnails() {
+        var count = Math.min(15, mediaItems.length);
+        for (var i = 0; i < count; i++) {
+            var thumbItem = mediaItems[i];
+            var thumbWrapper = document.querySelector('.chooser-thumb-wrapper[data-index="' + i + '"]');
+            if (thumbWrapper && thumbWrapper.querySelectorAll('img').length === 0) {
+                var img = document.createElement('img');
+                img.className = 'chooser-thumb';
+                img.src = encodePath(thumbItem.thumb);
+                img.alt = 'Thumbnail';
+                thumbWrapper.appendChild(img);
+            }
+        }
+    }
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    // Helper to safely URL-encode local file paths (handling emojis, brackets, and spaces)
+    function encodePath(p) {
+        if (!p || p.startsWith('http')) return p;
+        return p.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    }
+
+    let chooserObserver = null;
+
+    // Render horizontal chooser strip using lazy placeholder wrapper slots
+    function renderChooserStrip(items) {
+        const chooser = $('#photoChooser').empty();
+        items.forEach((item, index) => {
+            // Encode the thumbnail URL to make it browser-safe immediately
+            const thumbUrl = encodePath(item.thumb);
+            const isVid = item.type === 'video';
+            
+            let html = '<div class="chooser-thumb-wrapper" data-index="' + index + '" data-src="' + thumbUrl + '">';
+            if (isVid) {
+                html += '<div class="video-indicator">';
+                html += '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">';
+                html += '<path d="M8 5v14l11-7z" />';
+                html += '</svg>';
+                html += '</div>';
+            }
+            html += '</div>';
+            
+            const wrapper = $(html);
+            
+            wrapper.on('click', function() {
+                changeSlide(index);
+            });
+            
+            chooser.append(wrapper);
+        });
+
+        setupChooserObserver();
+    }
+
+    function setupChooserObserver() {
+        const chooser = document.getElementById('photoChooser');
+        if (!chooser) return;
+
+        if (chooserObserver) chooserObserver.disconnect();
+
+        chooserObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const wrapper = $(entry.target);
+                    const src = wrapper.attr('data-src');
+                    
+                    // Inject image only when wrapper is scrolled into view
+                    if (wrapper.find('img').length === 0) {
+                        const img = $(`<img class="chooser-thumb" src="${src}" alt="Thumbnail" loading="lazy">`);
+                        wrapper.append(img);
+                    }
+                }
+            });
+        }, {
+            root: chooser,
+            rootMargin: '150px',
+            threshold: 0.01
+        });
+
+        document.querySelectorAll('.chooser-thumb-wrapper').forEach(el => {
+            chooserObserver.observe(el);
+        });
+    }
+
+    function createMediaWrapper(item) {
+        const url = encodePath(item.src);
+        const isVid = item.type === 'video';
+        let mediaEl;
+        if (isVid) {
+            mediaEl = $('<video controls playsinline></video>').attr('src', url);
+        } else {
+            let renderUrl = url;
+            if (url.includes('googleusercontent.com')) {
+                renderUrl = renderUrl + '=w1600';
+            }
+            mediaEl = $('<img alt="Wedding photo">').attr('src', renderUrl);
+        }
+        
+        const wrapper = $('<div class="media-wrapper"></div>').append(mediaEl);
+        
+        // Add the logo to the bottom right of the image/video
+        var logoHtml = '<svg viewBox="0 0 53.046001 89.480003" xmlns="http://www.w3.org/2000/svg">';
+        logoHtml += '<g><path style="display:inline;fill-opacity:1;stroke-width:2.59557;stroke-linecap:round;stroke-linejoin:round" ';
+        logoHtml += 'd="M 31.535905,1.7483674 C 14.940495,7.4868674 5.3330852,23.712391 1.9698223,38.981481 -1.3231922,52.912001 4.116907,63.620561 13.042851,68.330291 l -7.3258605,18.93948 c -0.3009588,0.77827 -0.2643726,0.99745 0.085861,1.137503 0.4682008,0.18729 0.6027486,0.0332 0.9050733,-0.682403 l 7.8666742,-18.62165 c 18.043275,6.93149 35.683711,-9.51639 37.398161,-19.40229 0.854366,-6.42768 -5.932976,-6.64518 -11.652802,-7.57944 1.949561,-5.96864 3.987828,-12.90375 5.028599,-17.22428 C 47.15549,17.555156 49.536696,4.6333434 41.576527,1.6985364 39.687158,1.0423204 35.921115,0.50551838 31.535905,1.7483674 Z M 43.330038,24.495521 c -1.639154,5.98814 -3.916916,12.334 -5.582471,17.41389 l -4.266443,-0.4757 -0.397455,-16.89398 c -0.01819,-1.73133 -1.760681,-2.09725 -2.422232,-0.49719 l -6.132082,16.3314 c 0,0 -8.749842,-1.14202 -8.888835,-1.16013 -0.139122,-0.0182 -0.517711,-0.0551 -0.551741,0.31489 -0.03193,0.34609 0.154956,0.44174 0.413164,0.498 2.745358,0.59839 5.748949,1.08763 8.584507,1.61054 l -10.647049,25.63916 c -26.541303,-18.2495 4.862977,-71.6540574 26.622637,-65.0646176 9.544439,2.890326 4.464632,17.9121696 3.268,22.2837376 z m -11.865749,4.22509 -0.370982,12.47045 -4.389525,-0.5539 z m -5.236606,13.29259 4.888205,0.78984 -0.02779,18.96424 c 0.02336,1.76977 1.901906,1.9245 2.50413,0.26016 0,0 3.054378,-8.3824 6.104178,-17.53446 l 5.925998,0.86128 c 2.174372,0.41147 3.980142,1.30032 3.757291,3.89593 -0.968876,11.28414 -19.028534,24.92357 -34.382112,18.77771 z m 7.335931,1.25068 3.572559,0.68814 c -1.335342,3.99752 -2.767206,8.3566 -3.798499,11.30642 z" /></g></svg>';
+        var logoContainer = $('<div class="slide-logo-container"></div>');
+        logoContainer[0].innerHTML = logoHtml;
+        wrapper.append(logoContainer);
+        
+        return wrapper;
+    }
+
+    // Load the first slide directly into the active container (no wipe animation)
+    function loadInitialSlide(index) {
+        currentItemIndex = index;
+        var item = mediaItems[index];
+        var isVid = item.type === 'video';
+        var activeContainer = document.getElementById('slideActive');
+        
+        // Update index counter
+        var indexEl = document.getElementById('slideshowIndex');
+        if (indexEl) {
+            indexEl.textContent = (index + 1) + ' / ' + mediaItems.length;
+        }
+        
+        // Build the media element and place it directly in the active slide
+        var wrapper = createMediaWrapper(item);
+        if (isVid) {
+            setupVideoEvents(wrapper.find('video'));
+        }
+        
+        $(activeContainer).empty().append(wrapper);
+        
+        // Mark the active thumbnail
+        $('.chooser-thumb-wrapper').removeClass('active');
+        var activeThumb = document.querySelector('.chooser-thumb-wrapper[data-index="' + index + '"]');
+        if (activeThumb) {
+            activeThumb.classList.add('active');
+        }
+        
+        // Preload neighbors
+        preloadSurroundingMedia(index);
+        
+        // Start auto-advance timer
+        if (!isVid) {
             resetSlideshowTimer();
         }
+    }
 
-        function closeLightbox() {
-            lightbox.removeClass('show');
-            $('body').css('overflow', 'auto'); // Re-enable page scroll
-            
-            // Stop any playing video
-            if (!lightboxVideo[0].paused) {
-                lightboxVideo[0].pause();
+    function changeSlide(newIndex) {
+        console.log("changeSlide requested for index:", newIndex, "current index is:", currentItemIndex);
+        if (newIndex < 0 || newIndex >= mediaItems.length || newIndex === currentItemIndex) {
+            console.log("changeSlide ignored request (out of bounds or matches current index)");
+            return;
+        }
+        
+        const oldIndex = currentItemIndex;
+        currentItemIndex = newIndex;
+        
+        const item = mediaItems[currentItemIndex];
+        const isVid = item.type === 'video';
+        const activeContainer = $('#slideActive');
+        const incomingContainer = $('#slideIncoming');
+        
+        // Clear active advance timer while transitioning
+        clearInterval(slideshowInterval);
+        
+        // Stop currently playing video in active slide
+        const activeVideo = activeContainer.find('video');
+        if (activeVideo.length > 0 && !activeVideo[0].paused) {
+            activeVideo[0].pause();
+        }
+        
+        // Update index text
+        $('#slideshowIndex').text(`${currentItemIndex + 1} / ${mediaItems.length}`);
+        
+        // Update chooser active state
+        $('.chooser-thumb-wrapper').removeClass('active');
+        const activeThumb = $(`.chooser-thumb-wrapper[data-index="${currentItemIndex}"]`).addClass('active');
+        
+        // Force-load active thumbnail on slide switch
+        if (activeThumb.length > 0) {
+            if (activeThumb.find('img').length === 0) {
+                activeThumb.append($(`<img class="chooser-thumb" src="${encodePath(item.thumb)}" alt="Thumbnail">`));
             }
-            lightboxVideo.attr('src', '');
+            const strip = $('#photoChooser');
+            const scrollLeft = activeThumb.position().left + strip.scrollLeft() - (strip.width() / 2) + (activeThumb.width() / 2);
+            strip.animate({ scrollLeft: scrollLeft }, 300);
+        }
+        
+        // Build incoming content
+        incomingContainer.empty();
+        const wrapper = createMediaWrapper(item);
+        if (isVid) {
+            setupVideoEvents(wrapper.find('video'));
+        }
+        
+        incomingContainer.append(wrapper);
+        incomingContainer.addClass('incoming');
+        
+        // Swap slides once wipe animation is complete
+        setTimeout(() => {
+            activeContainer.empty().append(incomingContainer.html());
+            
+            // Rebind events on active slide copy
+            if (isVid) {
+                const newVid = activeContainer.find('video');
+                setupVideoEvents(newVid);
+                newVid[0].play().catch(e => console.log('Autoplay blocked:', e));
+            } else {
+                if (wasMusicPlayingBeforeVideo) {
+                    playBackgroundMusic();
+                    wasMusicPlayingBeforeVideo = false;
+                }
+                resetSlideshowTimer();
+            }
+            
+            // Preload next set of media items in cache
+            preloadSurroundingMedia(currentItemIndex);
+            
+            incomingContainer.removeClass('incoming').empty();
+        }, 750); // Matches the CSS 0.75s wipe transition duration
+    }
 
-            // Resume background music if it was paused for video
+    // Preload next/prev main images and 8 thumbnails on either side of index
+    function preloadSurroundingMedia(index) {
+        if (mediaItems.length === 0) return;
+        
+        // 1. Preload 8 thumbnails on either side dynamically
+        for (let offset = -8; offset <= 8; offset++) {
+            if (offset === 0) continue;
+            const targetIndex = (index + offset + mediaItems.length) % mediaItems.length;
+            const thumbItem = mediaItems[targetIndex];
+            const thumbWrapper = $(`.chooser-thumb-wrapper[data-index="${targetIndex}"]`);
+            
+            if (thumbWrapper.length > 0 && thumbWrapper.find('img').length === 0) {
+                const encodedThumb = encodePath(thumbItem.thumb);
+                thumbWrapper.append($(`<img class="chooser-thumb" src="${encodedThumb}" alt="Thumbnail" loading="lazy">`));
+            }
+        }
+        
+        // 2. Preload surrounding main slides (prev and next indices)
+        const prevIndex = (index - 1 + mediaItems.length) % mediaItems.length;
+        const nextIndex = (index + 1) % mediaItems.length;
+        
+        [prevIndex, nextIndex].forEach(idx => {
+            const item = mediaItems[idx];
+            if (item.type === 'image') {
+                let renderUrl = encodePath(item.src);
+                if (renderUrl.includes('googleusercontent.com')) {
+                    renderUrl = `${renderUrl}=w1600`;
+                }
+                const img = new Image();
+                img.src = renderUrl;
+            } else if (item.type === 'video') {
+                const videoUrl = encodePath(item.src);
+                const tempVideo = document.createElement('video');
+                tempVideo.src = videoUrl;
+                tempVideo.preload = 'auto';
+            }
+        });
+    }
+
+    function setupVideoEvents(videoEl) {
+        videoEl[0].onplay = function() {
+            clearInterval(slideshowInterval); // Stop auto-advance
+            if (isPlaying) {
+                wasMusicPlayingBeforeVideo = true;
+                pauseBackgroundMusic();
+            }
+        };
+        
+        videoEl[0].onpause = function() {
+            resetSlideshowTimer(); // Resume auto-advance
             if (wasMusicPlayingBeforeVideo) {
                 playBackgroundMusic();
                 wasMusicPlayingBeforeVideo = false;
             }
-
-            // Turn off slideshow
-            if (isSlideshowPlaying) {
-                toggleSlideshow();
+        };
+        
+        videoEl[0].onended = function() {
+            if (wasMusicPlayingBeforeVideo) {
+                playBackgroundMusic();
+                wasMusicPlayingBeforeVideo = false;
             }
-            
-            setTimeout(() => {
-                lightboxImg.attr('src', '');
-            }, 300);
+            showNext();
+        };
+    }
+
+    function showNext() {
+        let nextIndex = currentItemIndex + 1;
+        if (nextIndex >= mediaItems.length) nextIndex = 0;
+        changeSlide(nextIndex);
+    }
+
+    function showPrev() {
+        let prevIndex = currentItemIndex - 1;
+        if (prevIndex < 0) prevIndex = mediaItems.length - 1;
+        changeSlide(prevIndex);
+    }
+
+    function resetSlideshowTimer() {
+        clearInterval(slideshowInterval);
+        
+        // Only auto-advance if the current slide is NOT a playing video
+        const activeContainer = $('#slideActive');
+        const activeVideo = activeContainer.find('video');
+        if (activeVideo.length > 0 && !activeVideo[0].paused) {
+            return;
         }
+        
+        slideshowInterval = setInterval(showNext, SLIDESHOW_DELAY);
+    }
 
-        function showPrev() {
-            if (mediaItems.length === 0) return;
-            
-            let newIndex;
-            if (isShuffleActive) {
-                currentShufflePos--;
-                if (currentShufflePos < 0) currentShufflePos = shuffledIndices.length - 1;
-                newIndex = shuffledIndices[currentShufflePos];
-            } else {
-                newIndex = currentItemIndex - 1;
-                if (newIndex < 0) newIndex = mediaItems.length - 1;
-            }
-            
-            openLightbox(newIndex);
-        }
-
-        function showNext() {
-            if (mediaItems.length === 0) return;
-            
-            let newIndex;
-            if (isShuffleActive) {
-                currentShufflePos++;
-                if (currentShufflePos >= shuffledIndices.length) currentShufflePos = 0;
-                newIndex = shuffledIndices[currentShufflePos];
-            } else {
-                newIndex = currentItemIndex + 1;
-                if (newIndex >= mediaItems.length) newIndex = 0;
-            }
-            
-            openLightbox(newIndex);
-        }
-
-        // Slideshow controls
-        playPauseBtn.on('click', function(e) {
-            e.stopPropagation();
-            toggleSlideshow();
-        });
-
-        shuffleBtn.on('click', function(e) {
-            e.stopPropagation();
-            toggleShuffle();
-        });
-
-        function toggleSlideshow() {
-            isSlideshowPlaying = !isSlideshowPlaying;
-            if (isSlideshowPlaying) {
-                playPauseBtn.find('.icon-slideshow-play').hide();
-                playPauseBtn.find('.icon-slideshow-pause').show();
-                playPauseBtn.addClass('active');
-                slideshowInterval = setInterval(showNext, 4000); // advance every 4 seconds
-            } else {
-                playPauseBtn.find('.icon-slideshow-pause').hide();
-                playPauseBtn.find('.icon-slideshow-play').show();
-                playPauseBtn.removeClass('active');
-                clearInterval(slideshowInterval);
-            }
-        }
-
-        function resetSlideshowTimer() {
-            if (isSlideshowPlaying) {
-                clearInterval(slideshowInterval);
-                slideshowInterval = setInterval(showNext, 4000);
-            }
-        }
-
-        function toggleShuffle() {
-            isShuffleActive = !isShuffleActive;
-            if (isShuffleActive) {
-                shuffleBtn.addClass('active');
-                generateShuffleSequence();
-            } else {
-                shuffleBtn.removeClass('active');
-                shuffledIndices = [];
-                currentShufflePos = -1;
-            }
-        }
-
-        function generateShuffleSequence() {
-            shuffledIndices = Array.from({length: mediaItems.length}, (_, i) => i);
-            // Fisher-Yates shuffle
-            for (let i = shuffledIndices.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffledIndices[i], shuffledIndices[j]] = [shuffledIndices[j], shuffledIndices[i]];
-            }
-            // Start index tracking
-            if (currentItemIndex !== -1) {
-                currentShufflePos = shuffledIndices.indexOf(currentItemIndex);
-            }
-        }
-
-        // Close triggers
-        closeBtn.on('click', closeLightbox);
-        lightbox.on('click', function(e) {
-            if (e.target === this || e.target.classList.contains('lightboxContent')) {
-                closeLightbox();
-            }
-        });
-
-        // Navigation click events
-        prevBtn.on('click', function(e) {
+    function setupSlideshowControls() {
+        // Arrow overrides
+        $('#prevBtn').on('click', function(e) {
             e.stopPropagation();
             showPrev();
         });
-        nextBtn.on('click', function(e) {
+        
+        $('#nextBtn').on('click', function(e) {
             e.stopPropagation();
             showNext();
         });
-
-        // Keyboard bindings
+        
+        // Keyboard controls
         $(document).on('keydown', function(e) {
-            if (!lightbox.hasClass('show')) return;
-            if (e.key === 'Escape') closeLightbox();
             if (e.key === 'ArrowLeft') showPrev();
             if (e.key === 'ArrowRight') showNext();
             if (e.key === ' ') {
                 e.preventDefault();
-                // Pause lightbox video or slideshow play/pause
-                if (isVideo(mediaItems[currentItemIndex])) {
-                    const vid = lightboxVideo[0];
-                    if (vid.paused) vid.play(); else vid.pause();
-                } else {
-                    toggleSlideshow();
+                // Pause/play current video if active
+                const activeContainer = $('#slideActive');
+                const activeVideo = activeContainer.find('video');
+                if (activeVideo.length > 0) {
+                    if (activeVideo[0].paused) activeVideo[0].play();
+                    else activeVideo[0].pause();
                 }
             }
         });
 
-        // Swipe support
+        // Touch Swipe support
         let touchStartX = 0;
         let touchEndX = 0;
+        const container = $('#slideshowContainer');
 
-        lightbox.on('touchstart', function(e) {
+        container.on('touchstart', function(e) {
             touchStartX = e.changedTouches[0].screenX;
-        });
+        }, { passive: true });
 
-        lightbox.on('touchend', function(e) {
+        container.on('touchend', function(e) {
             touchEndX = e.changedTouches[0].screenX;
             handleSwipe();
-        });
+        }, { passive: true });
 
         function handleSwipe() {
-            const threshold = 50;
+            const threshold = 55;
             if (touchEndX < touchStartX - threshold) {
                 showNext();
             }
@@ -382,8 +432,6 @@ $(document).ready(function() {
         const progressBarContainer = $('#progressBarContainer');
         const timeCurrent = $('#timeCurrent');
         const timeDuration = $('#timeDuration');
-        const volumeBtn = $('#volumeBtn');
-        const volumeSlider = $('#volumeSlider');
         const minimizeBtn = $('#minimizeBtn');
 
         // Setup audio element
@@ -391,29 +439,14 @@ $(document).ready(function() {
         audio.volume = 0.8;
         audio.loop = true;
 
-        // Try music autoplay immediately
         playBackgroundMusic();
 
-        // Autoplay logic if blocked
-        function playAttempt() {
-            audio.play().then(() => {
-                isPlaying = true;
-                player.removeClass('minimized');
-                player.addClass('playing');
-                playPauseBtn.find('.icon-play').hide();
-                playPauseBtn.find('.icon-pause').show();
-                // Remove listeners once autoplay succeeds
-                $(document).off('click touchstart', firstInteractionPlay);
-            }).catch(err => {
-                console.log('Autoplay blocked. Waiting for first interaction...');
-            });
-        }
-
-        // Listener for first user interaction
-        function firstInteractionPlay() {
-            playAttempt();
-        }
-        $(document).on('click touchstart', firstInteractionPlay);
+        // Attempt to start audio on first interaction if autoplay is blocked
+        $(document).one('click touchstart scroll', function() {
+            if (!isPlaying && audio && audio.paused) {
+                playBackgroundMusic();
+            }
+        });
 
         // UI triggers
         trigger.on('click', function() {
@@ -435,7 +468,7 @@ $(document).ready(function() {
             player.addClass('minimized');
         });
 
-        // Time durations
+        // Time updates
         audio.addEventListener('timeupdate', function() {
             if (audio.duration) {
                 const progress = (audio.currentTime / audio.duration) * 100;
@@ -452,7 +485,6 @@ $(document).ready(function() {
             timeDuration.text(formatTime(audio.duration));
         }
 
-        // Scrubber click
         progressBarContainer.on('click', function(e) {
             if (!audio.duration) return;
             const clickX = e.offsetX;
@@ -461,49 +493,25 @@ $(document).ready(function() {
             audio.currentTime = newTime;
         });
 
-        // Volume controls
-        volumeSlider.on('input', function(e) {
-            e.stopPropagation();
-            audio.volume = $(this).val();
-            updateVolumeIcon(audio.volume);
-        });
 
-        let previousVolume = 0.8;
-        volumeBtn.on('click', function(e) {
-            e.stopPropagation();
-            if (audio.volume > 0) {
-                previousVolume = audio.volume;
-                audio.volume = 0;
-                volumeSlider.val(0);
-                updateVolumeIcon(0);
-            } else {
-                audio.volume = previousVolume;
-                volumeSlider.val(previousVolume);
-                updateVolumeIcon(previousVolume);
-            }
-        });
-
-        function updateVolumeIcon(vol) {
-            if (vol === 0) {
-                volumeBtn.find('.icon-volume').hide();
-                volumeBtn.find('.icon-mute').show();
-            } else {
-                volumeBtn.find('.icon-mute').hide();
-                volumeBtn.find('.icon-volume').show();
-            }
-        }
     }
 
-    // Global background music helpers
     function playBackgroundMusic() {
         if (!audio) return;
+        // Don't play music if a video is currently active and playing
+        const activeContainer = $('#slideActive');
+        const activeVideo = activeContainer.find('video');
+        if (activeVideo.length > 0 && !activeVideo[0].paused) {
+            return;
+        }
+        
         audio.play().then(() => {
             isPlaying = true;
             $('#audioPlayerWidget').addClass('playing');
             $('#playPauseBtn').find('.icon-play').hide();
             $('#playPauseBtn').find('.icon-pause').show();
         }).catch(err => {
-            console.log('Background music play blocked:', err);
+            console.log('Autoplay blocked:', err);
         });
     }
 
@@ -516,11 +524,14 @@ $(document).ready(function() {
         $('#playPauseBtn').find('.icon-play').show();
     }
 
-    // Format seconds -> m:ss
     function formatTime(seconds) {
         if (isNaN(seconds) || seconds === Infinity) return '0:00';
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return mins + ':' + (secs < 10 ? '0' : '') + secs;
     }
+
+    // Initialize gallery and audio after everything is defined
+    initGallery();
+    initAudioPlayer();
 });

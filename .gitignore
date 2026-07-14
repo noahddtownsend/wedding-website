@@ -1,0 +1,10 @@
+# System files
+.DS_Store
+Thumbs.db
+.idea/
+
+# Exclude heavy local media files to avoid hitting GitHub's 100MB file size limits
+images/album/
+audio/*.wav
+audio/*.mp3
+images/thumbnails/
