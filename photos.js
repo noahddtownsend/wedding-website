@@ -6,6 +6,7 @@ $(document).ready(function() {
     
     // Slideshow variables
     let slideshowInterval = null;
+    let wipeTimeout = null;
     const SLIDESHOW_DELAY = 4000; // 4 seconds auto-advance
 
     // Audio state
@@ -223,6 +224,14 @@ $(document).ready(function() {
         // Clear active advance timer while transitioning
         clearInterval(slideshowInterval);
         
+        if (wipeTimeout) {
+            clearTimeout(wipeTimeout);
+            activeContainer.empty().append(incomingContainer.html());
+            activeContainer.removeClass('fading-out');
+            incomingContainer.removeClass('incoming').empty();
+            wipeTimeout = null;
+        }
+        
         // Stop currently playing video in active slide
         const activeVideo = activeContainer.find('video');
         if (activeVideo.length > 0 && !activeVideo[0].paused) {
@@ -254,11 +263,17 @@ $(document).ready(function() {
         }
         
         incomingContainer.append(wrapper);
+        
+        // Force browser reflow to ensure the CSS animation triggers every time
+        void incomingContainer[0].offsetWidth;
+        
+        activeContainer.addClass('fading-out');
         incomingContainer.addClass('incoming');
         
-        // Swap slides once wipe animation is complete
-        setTimeout(() => {
+        // Swap slides once transition animation is complete
+        wipeTimeout = setTimeout(() => {
             activeContainer.empty().append(incomingContainer.html());
+            activeContainer.removeClass('fading-out');
             
             // Rebind events on active slide copy
             if (isVid) {
@@ -277,7 +292,8 @@ $(document).ready(function() {
             preloadSurroundingMedia(currentItemIndex);
             
             incomingContainer.removeClass('incoming').empty();
-        }, 750); // Matches the CSS 0.75s wipe transition duration
+            wipeTimeout = null;
+        }, 400); // Matches the CSS 0.4s fade transition duration
     }
 
     // Preload next/prev main images and 8 thumbnails on either side of index
