@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HQVX2CJVEF"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+
+        gtag('js', new Date());
+
+        gtag('config', 'G-HQVX2CJVEF');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Genevieve & Noah - Photos</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Literata:ital,opsz,wght@0,7..72,200..900;1,7..72,200..900&display=swap&family=Cactus+Classical+Serif&family=Open+Sans:ital@0;1&display=swap"
+          rel="stylesheet">
+    
+    <link href="main.css" rel="stylesheet">
+    <link href="photos.css" rel="stylesheet">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="photos_data.js"></script>
+    <script src="photos.js"></script>
+
+    <link rel="icon" type="image/x-icon" href="/images/assets/g&nlogo.png">
+</head>
+<body>
+<nav>
+    <div id="navContainer">
+        <a class="menuItem" href="index.html">HOME</a>
+        <a class="menuItem" href="index.html#details">DETAILS</a>
+        <a class="menuItem" href="index.html#rsvp" id="rsvpMenu">RSVP</a>
+        <a class="menuItem" id="logo" href="index.html">
+            <div class="logo" alt="Genevieve & Noah">
+                <svg
+                        width="53.046001mm"
+                        height="89.480003mm"
+                        viewBox="0 0 53.046001 89.480003"
+                        id="svg894"
+                        xmlns="http://www.w3.org/2000/svg">
+                    <defs id="defs891"/>
+                    <g id="layer1">
+                        <path
+                                style="color:#000000;display:inline;fill-opacity:1;stroke-width:2.59557;stroke-linecap:round;stroke-linejoin:round;-inkscape-stroke:none"
+                                d="M 31.535905,1.7483674 C 14.940495,7.4868674 5.3330852,23.712391 1.9698223,38.981481 -1.3231922,52.912001 4.116907,63.620561 13.042851,68.330291 l -7.3258605,18.93948 c -0.3009588,0.77827 -0.2643726,0.99745 0.085861,1.137503 0.4682008,0.18729 0.6027486,0.0332 0.9050733,-0.682403 l 7.8666742,-18.62165 c 18.043275,6.93149 35.683711,-9.51639 37.398161,-19.40229 0.854366,-6.42768 -5.932976,-6.64518 -11.652802,-7.57944 1.949561,-5.96864 3.987828,-12.90375 5.028599,-17.22428 C 47.15549,17.555156 49.536696,4.6333434 41.576527,1.6985364 39.687158,1.0423204 35.921115,0.50551838 31.535905,1.7483674 Z M 43.330038,24.495521 c -1.639154,5.98814 -3.916916,12.334 -5.582471,17.41389 l -4.266443,-0.4757 -0.397455,-16.89398 c -0.01819,-1.73133 -1.760681,-2.09725 -2.422232,-0.49719 l -6.132082,16.3314 c 0,0 -8.749842,-1.14202 -8.888835,-1.16013 -0.139122,-0.0182 -0.517711,-0.0551 -0.551741,0.31489 -0.03193,0.34609 0.154956,0.44174 0.413164,0.498 2.745358,0.59839 5.748949,1.08763 8.584507,1.61054 l -10.647049,25.63916 c -26.541303,-18.2495 4.862977,-71.6540574 26.622637,-65.0646176 9.544439,2.890326 4.464632,17.9121696 3.268,22.2837376 z m -11.865749,4.22509 -0.370982,12.47045 -4.389525,-0.5539 z m -5.236606,13.29259 4.888205,0.78984 -0.02779,18.96424 c 0.02336,1.76977 1.901906,1.9245 2.50413,0.26016 0,0 3.054378,-8.3824 6.104178,-17.53446 l 5.925998,0.86128 c 2.174372,0.41147 3.980142,1.30032 3.757291,3.89593 -0.968876,11.28414 -19.028534,24.92357 -34.382112,18.77771 z m 7.335931,1.25068 3.572559,0.68814 c -1.335342,3.99752 -2.767206,8.3566 -3.798499,11.30642 z"
+                                id="path857"/>
+                    </g>
+                </svg>
+            </div>
+        </a>
+        <a class="menuItem" href="photos.html" id="photosMenu">PHOTOS</a>
+        <a class="menuItem" href="index.html#activities">ACTIVITIES</a>
+        <a class="menuItem" href="index.html#registry" id="registryMenu">REGISTRY</a>
+    </div>
+</nav>
+
+<div id="photosPage">
+    <div id="detailsImageBackground"></div>
+    <div id="photosContent">
+        <h1 class="centerHeader">Photo Gallery</h1>
+        <p class="gallerySubtitle">A collection of our favorite moments together. Enjoy the music while you browse!</p>
+
+        <!-- Loading spinner -->
+        <div id="galleryLoading">
+            <div class="spinner"></div>
+            <p>Gathering memories...</p>
+        </div>
+
+        <!-- Grid/Masonry layout for photos -->
+        <div id="photosGrid"></div>
+    </div>
+</div>
+
+<!-- Fullscreen Lightbox -->
+<div id="lightbox" class="lightbox">
+    <span class="lightboxClose">&times;</span>
+    <span class="lightboxArrow lightboxPrev">&#10094;</span>
+    <span class="lightboxArrow lightboxNext">&#10095;</span>
+    <div class="lightboxContent">
+        <img id="lightboxImg" src="" alt="Zoomed view">
+        <video id="lightboxVideo" controls style="display: none;"></video>
+    </div>
+    <div class="lightbox-toolbar">
+        <button id="slideshowPlayPause" class="toolbar-btn" title="Play/Pause Slideshow">
+            <svg class="icon-slideshow-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg class="icon-slideshow-pause" viewBox="0 0 24 24" style="display: none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+        <button id="slideshowShuffle" class="toolbar-btn" title="Shuffle Mode">
+            <svg class="icon-shuffle" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 18 7.41 20.04 9.45 21 4h-6.5zm.09 10.83l-1.42 1.42 3.83 3.83L15 22.04 20.5 22l-.04-5.5-2.04 2.04-3.83-3.83z"/></svg>
+        </button>
+        <span id="lightboxIndex" class="lightbox-index">0 / 0</span>
+    </div>
+</div>
+
+<!-- Floating Custom Audio Player -->
+<div id="audioPlayerWidget" class="audio-player minimized">
+    <!-- Pulse Trigger (Collapsed State) -->
+    <div class="player-trigger" id="playerTrigger">
+        <div class="pulse-ring"></div>
+        <svg class="music-icon" viewBox="0 0 24 24">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+        </svg>
+        <span class="trigger-text">Play Music</span>
+    </div>
+
+    <!-- Player Controls (Expanded State) -->
+    <div class="player-expanded-content">
+        <button id="playPauseBtn" class="control-btn play">
+            <!-- Play SVG icon -->
+            <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <!-- Pause SVG icon -->
+            <svg class="icon-pause" viewBox="0 0 24 24" style="display: none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+
+        <div class="track-info">
+            <div class="track-name">Ely Lights</div>
+            <div class="track-artist">The Pink Dream</div>
+        </div>
+
+        <div class="scrubber-container">
+            <span class="time-current" id="timeCurrent">0:00</span>
+            <div class="progress-bar-container" id="progressBarContainer">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <span class="time-duration" id="timeDuration">0:00</span>
+        </div>
+
+        <div class="volume-container">
+            <button id="volumeBtn" class="control-btn">
+                <!-- Volume Up Icon -->
+                <svg class="icon-volume" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                <!-- Muted Icon (Hidden initially) -->
+                <svg class="icon-mute" viewBox="0 0 24 24" style="display:none;"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+            </button>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.8">
+        </div>
+
+        <div class="visualizer" id="audioVisualizer">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </div>
+
+        <button id="minimizeBtn" class="control-btn minimize" title="Minimize player">
+            <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
+        </button>
+    </div>
+</div>
+</body>
+</html>
